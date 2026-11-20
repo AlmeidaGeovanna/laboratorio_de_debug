@@ -14,7 +14,10 @@ Stack: React 18 + Vite 5 + React Router DOM 6 + JSON Server 0.17
 2. Testei os métodos HTTP direto na API com **curl**, para saber como o JSON Server responde antes de olhar o front.
 3. Comparei as URLs chamadas em `src/services/productService.js` com as rotas reais da API.
 4. Revisei `vite.config.js`, `App.jsx`, `productService.js`, `ProductList.jsx` e `ProductForm.jsx`.
-5. Reproduzi cada sintoma no app rodando, observando **console** (erros e avisos do React), **requisições** (método, URL e status, como na aba Network), o **terminal do JSON Server** (que registra cada requisição com o status) e o **db.json**. Para repetir as sequências de navegação sempre do mesmo jeito, antes e depois de cada correção, também rodei o código do app num navegador simulado (jsdom) com um script que registra o console e cada requisição à API. Os resultados batem com o que aparece no console e na aba Network do navegador (ver prints na seção 5).
+5. Reproduzi cada sintoma no app rodando, observando o **console** (erros e avisos do React), as **requisições** (método, URL e status), o **terminal do JSON Server** (que registra cada requisição com o status) e o **db.json**.
+   - Como o notebook é corporativo, as ferramentas de desenvolvedor do navegador (Inspecionar / F12, com Console e aba Network) estão bloqueadas.
+   - Para ver o console e as requisições, rodei o código do app num navegador simulado (jsdom), com um script que registra as mensagens do console e cada requisição à API (método, URL e status). Com ele também repeti as mesmas sequências de navegação antes e depois de cada correção.
+   - O terminal do JSON Server confirma, do lado da API, cada requisição e seu status (ver seção 5.2).
 6. Fiz uma correção por vez, com um commit cada, e repeti o mesmo teste para confirmar.
 
 O histórico do git (`git log --oneline`) mostra o projeto original e um commit por correção.
@@ -69,7 +72,7 @@ plugins: [react()],
 | **Arquivo/local** | `src/services/productService.js`, função `getProducts` |
 | **Sintoma** | A listagem mostrava "Não foi possível carregar os produtos." e "Nenhum produto encontrado." |
 | **Causa** | O fetch apontava para `/product` (singular). O JSON Server só cria rotas para as chaves do `db.json`, e a chave é `products`. |
-| **Diagnóstico** | Network: `GET http://localhost:3001/product` → **404**. Curl: `curl http://localhost:3001/product` → `{}` HTTP 404, e `curl http://localhost:3001/products` → HTTP 200 com os 4 produtos. |
+| **Diagnóstico** | Requisição registrada (script de teste e terminal do JSON Server): `GET /product` → **404**. Curl: `curl http://localhost:3001/product` → `{}` HTTP 404, e `curl http://localhost:3001/products` → HTTP 200 com os 4 produtos. |
 | **Correção** | Corrigir a rota (ver código abaixo). |
 | **Validação** | `GET /products 200` e a tabela exibe os 4 produtos (Teclado mecânico, Mouse sem fio, Monitor 24 polegadas, Webcam HD). |
 
@@ -87,7 +90,7 @@ const response = await fetch(`${API_URL}/products`)
 | **Arquivo/local** | `src/pages/ProductList.jsx`, função `handleDelete` |
 | **Sintoma** | Depois de confirmar a exclusão, aparecia "Não foi possível excluir o produto." e o item continuava na lista e no `db.json`. |
 | **Causa** | `handleDelete(id)` recebia o id, mas chamava `deleteProduct()` **sem argumento**. Dentro do serviço, `id` ficava `undefined` e a URL virava `/products/undefined`. |
-| **Diagnóstico** | Network: `DELETE http://localhost:3001/products/undefined` → **404**. Curl: `curl -X DELETE http://localhost:3001/products/undefined` → HTTP 404. Comparando a assinatura `deleteProduct(id)` com a chamada, vi que o argumento faltava. |
+| **Diagnóstico** | Requisição registrada (script de teste e terminal do JSON Server): `DELETE /products/undefined` → **404**. Curl: `curl -X DELETE http://localhost:3001/products/undefined` → HTTP 404. Comparando a assinatura `deleteProduct(id)` com a chamada, vi que o argumento faltava. |
 | **Correção** | Passar o id recebido (ver código abaixo). |
 | **Validação** | Cadastrei "Headset USB" (id 5) e excluí pela tela: `DELETE /products/5 200`, a linha some e `curl /products/5` → 404. Ao **cancelar** a confirmação, nenhuma requisição é feita (regra 7). |
 
@@ -155,7 +158,7 @@ useEffect(() => {
 | **Arquivo/local** | `src/pages/ProductForm.jsx`, função `handleSubmit` |
 | **Sintoma** | Enviar o formulário com nome só de espaços e os outros campos vazios **gravava um produto** `{ "name": "   ", "category": "", "price": 0, "quantity": 0 }`. |
 | **Causa** | O `handleSubmit` enviava os dados direto. `Number('')` vira `0`, então preço e quantidade vazios passavam como zero. Não havia checagem das regras 2 e 3 do README. |
-| **Diagnóstico** | Network: `POST /products` → **201** com o formulário vazio. Conferi o registro criado com `curl http://localhost:3001/products/5` (e depois o apaguei). |
+| **Diagnóstico** | Requisição registrada: `POST /products` → **201** mesmo com o formulário vazio. Conferi o registro criado com `curl http://localhost:3001/products/5` (e depois o apaguei). |
 | **Correção** | Função `validate()` com as regras do README; mensagens por campo (`.field-error`) e borda vermelha; aviso geral "Corrija os campos destacados antes de salvar."; `return` antes do fetch; `noValidate` no form para mostrar sempre as nossas mensagens em vez da validação nativa do navegador; `trim()` no nome e na categoria. Decidi também exigir quantidade inteira (o input já tem `step="1"`). |
 | **Validação** | Vazio → "Informe o nome do produto.", "Informe a categoria do produto.", "Informe o preço.", "Informe a quantidade."; preço `-5` → "O preço não pode ser negativo."; quantidade `2.5` → "A quantidade deve ser um número inteiro."; quantidade `-1` → "A quantidade não pode ser negativa.". Em todos os casos **nenhuma requisição** foi enviada e o `db.json` continuou com 4 produtos. |
 
@@ -199,7 +202,7 @@ const product = {
 | **Arquivo/local** | `src/services/productService.js` (todas as funções) |
 | **Sintoma** | Com o JSON Server parado, a listagem, a edição e o cadastro mostravam apenas **"Failed to fetch"**, que não diz nada ao usuário (regra 6). |
 | **Causa** | Quando o servidor não responde, o `fetch` não retorna uma resposta com status: ele **lança** `TypeError: Failed to fetch`. O `if (!response.ok)` nem chega a rodar, e o `err.message` técnico ia direto para a tela. |
-| **Diagnóstico** | Parei o JSON Server. Terminal: `curl http://localhost:3001/products` → código `000` (conexão recusada). Network: requisições com falha `net::ERR_CONNECTION_REFUSED`. A mensagem exibida era o texto do erro do navegador. |
+| **Diagnóstico** | Parei o JSON Server. Terminal: `curl http://localhost:3001/products` → código `000` (conexão recusada). No script de teste, as requisições falham com `net::ERR_CONNECTION_REFUSED`. A mensagem exibida era o texto do erro do navegador. |
 | **Correção** | Função `apiFetch` no serviço que captura o erro de rede e lança uma mensagem clara; todas as funções passaram a usá-la (ver código abaixo). |
 | **Validação** | Com a API parada, as três telas mostram: "Não foi possível conectar à API. Verifique se o JSON Server está rodando na porta 3001." Com a API ligada de novo, tudo volta a funcionar. |
 
@@ -229,7 +232,7 @@ const response = await apiFetch(`${API_URL}/products`)
 | **Arquivo/local** | `src/pages/ProductForm.jsx`, `setForm` dentro de `loadProduct` |
 | **Sintoma** | Se o produto vier da API sem algum campo (ex.: registro antigo sem `category`), o console mostra: `Warning: A component is changing an uncontrolled input to be controlled.` |
 | **Causa** | `value={undefined}` faz o React tratar o input como **não controlado**. Quando o usuário digita, o valor vira texto e o input passa a ser controlado, o que o React avisa. |
-| **Diagnóstico** | Simulei a resposta de `GET /products/1` como `{ "id": 1, "name": "Produto incompleto" }` e digitei no campo Categoria: o aviso apareceu no console (é um aviso, não um erro fatal). |
+| **Diagnóstico** | Simulei a resposta de `GET /products/1` como `{ "id": 1, "name": "Produto incompleto" }` e digitei no campo Categoria: o aviso apareceu no console registrado pelo script de teste (é um aviso, não um erro fatal). |
 | **Correção** | Valor padrão com `?? ''` (ver código abaixo). |
 | **Validação** | Mesma simulação: os campos ausentes aparecem vazios e o aviso não aparece mais ao digitar. |
 
@@ -253,7 +256,7 @@ setForm({
 | **Arquivo/local** | `src/App.jsx`, `<nav>` |
 | **Sintoma** | Em `/products/new`, os links "Produtos" **e** "Cadastrar produto" apareciam destacados ao mesmo tempo. |
 | **Causa** | Por padrão, o `NavLink` do React Router 6 fica ativo também nas **sub-rotas**: `/products` casa com `/products/new` e com `/products/1/edit`. |
-| **Diagnóstico** | Inspecionei os elementos do menu: os dois `<a>` estavam com a classe `active` em `/products/new`. |
+| **Diagnóstico** | Na tela, os dois links ficavam brancos (cor de link ativo, definida em `nav a.active` no `styles.css`). Com o script de teste, confirmei que em `/products/new` os dois `<a>` do menu recebiam a classe `active`. |
 | **Correção** | Prop `end` no link da listagem (ver código abaixo). |
 | **Validação** | `/products` → só "Produtos" ativo; `/products/new` → só "Cadastrar produto" ativo; `/products/1/edit` → nenhum dos dois (nenhum link do menu corresponde à edição). |
 
@@ -268,12 +271,18 @@ setForm({
 
 ## 4. Critérios de aceite
 
-- [x] **Listagem carrega os produtos da API.** `GET /products 200`, 4 linhas na tabela.
-- [x] **Cadastro persiste um novo produto no `db.json`.** Cadastrei "Headset USB / Audio / 199,90 / 8": `POST /products 201`, o produto aparece na lista e no `db.json` com `id: 5`.
-- [x] **Edição persiste as alterações do produto correto.** Editei o produto 2 (preço 89,90 → 79,90; quantidade 25 → 30): `PUT /products/2 200`. No `db.json`, só o id 2 mudou e os outros ficaram iguais.
-- [x] **Exclusão remove o produto correto.** Excluí "Headset USB" com confirmação: `DELETE /products/5 200`, e `GET /products/5` → 404. Os outros 4 continuaram.
-- [x] **Formulário apresenta dados ao editar.** `/products/2/edit` abre com "Mouse sem fio / Periféricos / 89.9 / 25". A troca entre produtos e para o cadastro também atualiza o formulário.
-- [x] **Validações impedem dados inválidos.** Vazio, só espaços, negativo e quantidade fracionada são bloqueados com mensagem e sem requisição.
+- [x] **Listagem carrega os produtos da API.** `GET /products 200`, 4 linhas na tabela (print `listagem.png`).
+- [x] **Cadastro persiste um novo produto no `db.json`.**
+  - Pela interface: cadastrei "Produto teste / teste / 200 / 2", com `POST /products 201` e id 5; ele aparece na lista (prints `cadastro.png` e `cadastro-listagem.png`).
+  - No teste por script: "Headset USB / Audio / 199,90 / 8", conferido no `db.json` com `id: 5`.
+- [x] **Edição persiste as alterações do produto correto.**
+  - Pela interface: alterei o preço do "Produto teste" de 200 para 400, com `PUT /products/5 200`; a lista mostra R$ 400,00 só nele (prints `edicao-preenchida.png` e `listagem-editada.png`).
+  - No teste por script: editei o produto 2 (preço 89,90 → 79,90; quantidade 25 → 30), com `PUT /products/2 200`. No `db.json`, só o id 2 mudou.
+- [x] **Exclusão remove o produto correto.**
+  - Pela interface: excluí o "Produto teste" depois da confirmação, com `DELETE /products/5 200`; a lista voltou a ter 4 produtos (print `confirmacao-exclusao.png` e log da seção 5.2).
+  - No teste por script: `GET /products/5` depois da exclusão → 404, e os outros 4 continuaram.
+- [x] **Formulário apresenta dados ao editar.** A edição do "Produto teste" abre preenchida (print `edicao-preenchida.png`). `/products/2/edit` abre com "Mouse sem fio / Periféricos / 89.9 / 25". A troca entre produtos e para o cadastro também atualiza o formulário.
+- [x] **Validações impedem dados inválidos.** Vazio, só espaços, negativo e quantidade fracionada são bloqueados com mensagem e sem requisição (print `validacao.png`).
 - [x] **Rotas funcionam ao atualizar o navegador.** `/products`, `/products/new` e `/products/1/edit` respondem 200 com o `index.html` no `npm run dev` e no `vite preview`, e cada rota renderiza a tela certa ao carregar direto.
 - [x] **Relatório explica causa, correção e teste de cada falha.** Seção 3.
 
@@ -348,34 +357,68 @@ $ curl -w "%{http_code}" http://localhost:3001/products
 000        (conexão recusada)
 ```
 
-Requisições registradas no terminal do JSON Server durante os testes pelo front:
+### 5.2 Requisições HTTP feitas pelo navegador (no lugar da aba Network)
+
+O notebook usado é corporativo e as **ferramentas de desenvolvedor do navegador (Inspecionar / F12) estão bloqueadas**, então não foi possível capturar a aba Network. Como evidência equivalente, usei o **log do terminal do JSON Server**, que registra cada requisição recebida com **método, URL e status HTTP**, a mesma informação que a aba Network mostra.
+
+Trecho real do log durante o fluxo que aparece nos prints da seção 5.3 (cadastro, edição e exclusão do "Produto teste", feitos pela interface em `http://localhost:5174`). As respostas `304 Not Modified` são do cache do navegador: elas só aparecem em requisições feitas pelo navegador, nunca pelo curl.
 
 ```text
+GET /products 200          ← listagem carregada
+GET /products 304
+POST /products 201         ← "Cadastrar produto": Produto teste (id 5) criado
+GET /products 200          ← volta para a listagem com 5 produtos
+GET /products 304
+GET /products/5 200        ← "Editar": formulário carregado com os dados do id 5
+GET /products/5 304
+PUT /products/5 200        ← "Salvar alterações": preço 200 → 400 no produto certo
 GET /products 200
-POST /products 201
-PUT /products/2 200
-DELETE /products/5 200
+GET /products 304
+DELETE /products/5 200     ← "Excluir" + confirmação OK: produto removido
+GET /products 200          ← listagem volta a ter 4 produtos
 ```
 
-### 5.2 Prints do sistema
+Os quatro métodos HTTP (GET, POST, PUT e DELETE) foram feitos pela aplicação e responderam com sucesso (200/201).
+
+### 5.3 Prints do sistema
+
+**Listagem carregando os 4 produtos da API (GET /products 200):**
 
 ![Listagem funcionando](prints/listagem.png)
 
+**Cadastro de um novo produto:**
+
 ![Cadastro de produto](prints/cadastro.png)
+
+**Produto cadastrado aparecendo na listagem (POST /products 201):**
 
 ![Produto cadastrado aparecendo na listagem](prints/cadastro-listagem.png)
 
+**Edição: o formulário abre preenchido com os dados do "Produto teste"; o preço está sendo alterado de 200 para 400:**
+
 ![Formulário de edição preenchido](prints/edicao-preenchida.png)
+
+**Listagem depois da edição, com o preço atualizado para R$ 400,00 (PUT /products/5 200):**
+
+![Listagem após a edição](prints/listagem-editada.png)
+
+**Confirmação antes de excluir (regra 7):**
 
 ![Confirmação de exclusão](prints/confirmacao-exclusao.png)
 
+**Validação bloqueando o envio do formulário vazio, com mensagem em cada campo:**
+
 ![Mensagens de validação](prints/validacao.png)
 
-![Aba Network: PUT /products/1 com status 200](prints/network-put.png)
+**Mensagem amigável com o JSON Server desligado:**
 
 ![Mensagem amigável com a API desligada](prints/api-desligada.png)
 
+**Menu em `/products/new`: só "Cadastrar produto" destacado (branco); "Produtos" fica cinza:**
+
 ![Menu com apenas "Cadastrar produto" ativo](prints/menu-ativo.png)
+
+**Histórico de commits: projeto original + um commit por correção:**
 
 ![Histórico de commits](prints/git-log.png)
 
@@ -383,6 +426,6 @@ DELETE /products/5 200
 
 ## 6. Reflexão
 
-O erro mais difícil de encontrar foi o do `useEffect` com dependências `[]` no formulário reaproveitado. Os outros deixavam rastro: a tela branca gerava `React is not defined` no console, a listagem e a exclusão apareciam como 404 na aba Network e até o input não controlado gerava um aviso do React. Esse não gerava nada: nenhum erro, nenhum aviso, nenhuma requisição com status errado. Ele só aparecia numa sequência específica de navegação, abrindo "Editar" e depois clicando em "Cadastrar produto" pelo menu (ou trocando de um produto para outro sem voltar para a lista). Se eu testasse cada tela separadamente, entrando pela listagem ou dando F5, tudo parecia funcionar.
+O erro mais difícil de encontrar foi o do `useEffect` com dependências `[]` no formulário reaproveitado. Os outros deixavam rastro: a tela branca gerava `React is not defined` no console, a listagem e a exclusão apareciam como 404 nas requisições (e no terminal do JSON Server) e até o input não controlado gerava um aviso do React. Esse não gerava nada: nenhum erro, nenhum aviso, nenhuma requisição com status errado. Ele só aparecia numa sequência específica de navegação, abrindo "Editar" e depois clicando em "Cadastrar produto" pelo menu (ou trocando de um produto para outro sem voltar para a lista). Se eu testasse cada tela separadamente, entrando pela listagem ou dando F5, tudo parecia funcionar.
 
 Para entender, precisei lembrar que o React reaproveita o mesmo componente quando duas rotas renderizam `<ProductForm />` na mesma posição, então o estado não é recriado. A pista que fechou o diagnóstico foi justamente a **ausência** de requisição: ao trocar de produto, nenhum `GET /products/:id` saía, ou seja, o efeito não estava rodando de novo. Aprendi que nem todo bug aparece como erro, e que também é importante testar os fluxos de navegação, e não só as telas isoladas.
