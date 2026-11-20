@@ -12,7 +12,7 @@ export default function App() {
           <h1>Estoque Fácil</h1>
         </div>
         <nav>
-          <NavLink to="/products">Produtos</NavLink>
+          <NavLink to="/products" end>Produtos</NavLink>
           <NavLink to="/products/new">Cadastrar produto</NavLink>
         </nav>
       </header>
