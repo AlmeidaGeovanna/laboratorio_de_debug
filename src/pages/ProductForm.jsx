@@ -9,8 +9,6 @@ const initialForm = {
   quantity: '',
 }
 
-// Regras 2 e 3 do README: nome/categoria obrigatórios e preço/quantidade
-// numéricos e não negativos. Retorna um objeto { campo: mensagem }.
 function validate(form) {
   const errors = {}
   if (!String(form.name).trim()) errors.name = 'Informe o nome do produto.'
@@ -39,8 +37,6 @@ export default function ProductForm() {
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
 
-  // O mesmo componente atende /products/new e /products/:id/edit, então o
-  // efeito precisa rodar de novo sempre que o id mudar (e limpar o estado).
   useEffect(() => {
     setError('')
     setFieldErrors({})
@@ -51,14 +47,13 @@ export default function ProductForm() {
       return
     }
 
-    let ignore = false // descarta respostas de um produto anterior
+    let ignore = false
     setLoading(true)
 
     async function loadProduct() {
       try {
         const product = await getProductById(id)
         if (ignore) return
-        // ?? '' evita que um campo ausente (undefined) deixe o input não controlado
         setForm({
           name: product.name ?? '',
           category: product.category ?? '',
@@ -92,7 +87,7 @@ export default function ProductForm() {
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) {
       setError('Corrija os campos destacados antes de salvar.')
-      return // não envia a requisição com dados inválidos
+      return
     }
 
     const product = {

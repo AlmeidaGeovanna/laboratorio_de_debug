@@ -3,8 +3,6 @@ const API_URL = 'http://localhost:3001'
 const CONNECTION_ERROR =
   'Não foi possível conectar à API. Verifique se o JSON Server está rodando na porta 3001.'
 
-// Quando a API está desligada, o fetch lança TypeError("Failed to fetch"),
-// que não é compreensível para o usuário. Traduz para uma mensagem clara.
 async function apiFetch(url, options) {
   try {
     return await fetch(url, options)
@@ -13,7 +11,6 @@ async function apiFetch(url, options) {
   }
 }
 
-// Serviço responsável pela comunicação com a API mockada.
 export async function getProducts() {
   const response = await apiFetch(`${API_URL}/products`)
   if (!response.ok) throw new Error('Não foi possível carregar os produtos.')
