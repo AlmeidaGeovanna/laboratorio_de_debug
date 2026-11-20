@@ -17,12 +17,24 @@ export default function ProductForm() {
   const [loading, setLoading] = useState(isEditing)
   const [error, setError] = useState('')
 
+  // O mesmo componente atende /products/new e /products/:id/edit, então o
+  // efeito precisa rodar de novo sempre que o id mudar (e limpar o estado).
   useEffect(() => {
-    if (!isEditing) return
+    setError('')
+    setForm(initialForm)
+
+    if (!isEditing) {
+      setLoading(false)
+      return
+    }
+
+    let ignore = false // descarta respostas de um produto anterior
+    setLoading(true)
 
     async function loadProduct() {
       try {
         const product = await getProductById(id)
+        if (ignore) return
         setForm({
           name: product.name,
           category: product.category,
@@ -30,14 +42,17 @@ export default function ProductForm() {
           quantity: product.quantity,
         })
       } catch (err) {
-        setError(err.message || 'Erro ao buscar produto.')
+        if (!ignore) setError(err.message || 'Erro ao buscar produto.')
       } finally {
-        setLoading(false)
+        if (!ignore) setLoading(false)
       }
     }
 
     loadProduct()
-  }, [])
+    return () => {
+      ignore = true
+    }
+  }, [id, isEditing])
 
   function handleChange(event) {
     const { name, value } = event.target
