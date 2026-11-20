@@ -58,11 +58,12 @@ export default function ProductForm() {
       try {
         const product = await getProductById(id)
         if (ignore) return
+        // ?? '' evita que um campo ausente (undefined) deixe o input não controlado
         setForm({
-          name: product.name,
-          category: product.category,
-          price: product.price,
-          quantity: product.quantity,
+          name: product.name ?? '',
+          category: product.category ?? '',
+          price: product.price ?? '',
+          quantity: product.quantity ?? '',
         })
       } catch (err) {
         if (!ignore) setError(err.message || 'Erro ao buscar produto.')
