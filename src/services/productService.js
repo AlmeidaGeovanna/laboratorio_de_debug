@@ -2,7 +2,7 @@ const API_URL = 'http://localhost:3001'
 
 // Serviço responsável pela comunicação com a API mockada.
 export async function getProducts() {
-  const response = await fetch(`${API_URL}/product`)
+  const response = await fetch(`${API_URL}/products`)
   if (!response.ok) throw new Error('Não foi possível carregar os produtos.')
   return response.json()
 }
